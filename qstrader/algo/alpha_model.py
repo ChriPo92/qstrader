@@ -20,52 +20,87 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from abc import ABCMeta, abstractmethod
-
+from abc import ABC, abstractmethod
+from nutrader.util import existing_sources
 
 class AlphaModelException(Exception):
-    pass
+	pass
 
 
-class AlphaModel(object):
-    """Abstract base class to inherit from when generating
-    a new alpha/factor/forecast model.
+class AlphaModel(ABC):
+	"""Abstract base class to inherit from when generating
+	a new alpha/factor/forecast model.
 
-    A derived-class instance of AlphaModel takes in a list
-    of Asset instances, a list of external (non-pricing/fundamental)
-    data sources and produces a list of Forecast instances.
+	A derived-class instance of AlphaModel takes in a list
+	of Asset instances, a list of external (non-pricing/fundamental)
+	data sources and produces a list of Forecast instances.
 
-    These Forecasts are used by the PortfolioConstructionModel
-    to generate Orders.
+	These Forecasts are used by the PortfolioConstructionModel
+	to generate Orders.
 
-    The AlphaModel framework is generic enough to support many
-    types of forecast model, such as short- and long-term trend-
-    following, mean-reversion, momentum etc.
+	The AlphaModel framework is generic enough to support many
+	types of forecast model, such as short- and long-term trend-
+	following, mean-reversion, momentum etc.
 
-    The AlphaModel exposes two 'public' methods - update(dt) and
-    forecast().
+	The AlphaModel exposes two 'public' methods - update(dt) and
+	forecast().
 
-    update(dt) requires a timestamp and is used to call further
-    'private' methods that update the pricing and non-pricing
-    data sources.
+	update(dt) requires a timestamp and is used to call further
+	'private' methods that update the pricing and non-pricing
+	data sources.
 
-    forecast() produces the list of actual forecasts and is where
-    the alpha/forecast model code is to be called.
-    """
+	forecast() produces the list of actual forecasts and is where
+	the alpha/forecast model code is to be called.
+	"""
 
-    __metaclass__ = ABCMeta
+	def __init__(self, model_id, sources_dict):
+		"""
+		Needs to be given a dict with the source name and params (another dict
+		most likely)
+		:param model_id: int
+		:param required_source: dict; dict.keys = source name,
+		                        dict.values = source params
+		"""
+		self.id = model_id
+		self.sources_dict = self._check_source_list(sources_dict)
+		# TODO: os the _name property really neccessary?
+		self._name = None
 
-    def __init__(self):
-        pass
+	@property
+	def name(self):
+		if self._name is not None:
+			return self._name
+		else:
+			raise ValueError(
+				"Name has not been set."
+			)
 
-    @abstractmethod
-    def update(self, dt):
-        raise NotImplementedError(
-            "Should implement update()"
-        )
+	@name.setter
+	def name(self, value):
+		if isinstance(value, str):
+			self._name = value
+		else:
+			raise ValueError(
+				"Name has to be a string and not %s" % type(value)
+			)
 
-    @abstractmethod
-    def forecast(self):
-        raise NotImplementedError(
-            "Should implement forecast()"
-        )
+	def _check_source_list(self, sources):
+		if not isinstance(sources, dict):
+			raise TypeError("Alpha Model needs to be given a dictionary of"
+			                " sources and their parameters")
+		for source, params in sources.items():
+			if not source in existing_sources:
+				raise ValueError("Source {} does not exist!".format(source))
+		return sources
+
+	@abstractmethod
+	def update(self, dt):
+		raise NotImplementedError(
+			"Should implement update()"
+		)
+
+	@abstractmethod
+	def forecast(self):
+		raise NotImplementedError(
+			"Should implement forecast()"
+		)
